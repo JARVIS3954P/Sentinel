@@ -1,1 +1,3 @@
+org/jarvis/core/PacketListenerService.class
 org/jarvis/Main.class
+org/jarvis/core/PacketAnalyzer.class
