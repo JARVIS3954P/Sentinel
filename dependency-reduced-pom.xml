@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.jarvis</groupId>
-  <artifactId>CustomPacketFilter</artifactId>
+  <artifactId>Sentinel</artifactId>
   <version>1.0-SNAPSHOT</version>
   <build>
     <plugins>
@@ -24,6 +24,14 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-maven-plugin</artifactId>
+        <version>0.0.8</version>
+        <configuration>
+          <mainClass>org.jarvis.Main</mainClass>
+        </configuration>
       </plugin>
     </plugins>
   </build>

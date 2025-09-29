@@ -4,7 +4,6 @@ import org.pcap4j.core.*;
 import org.pcap4j.packet.IpV4Packet;
 import org.pcap4j.packet.Packet;
 import java.net.Inet4Address;
-import java.util.List;
 
 public class Main {
 
