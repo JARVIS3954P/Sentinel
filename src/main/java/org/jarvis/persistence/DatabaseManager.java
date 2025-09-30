@@ -90,4 +90,21 @@ public class DatabaseManager {
             System.err.println("Error logging event: " + e.getMessage());
         }
     }
+
+    public void deleteRule(int id) {
+        String sql = "DELETE FROM rules WHERE id = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Set the corresponding parameter
+            pstmt.setInt(1, id);
+            // Execute the delete statement
+            pstmt.executeUpdate();
+            System.out.println("Rule with id " + id + " deleted successfully.");
+
+        } catch (SQLException e) {
+            System.err.println("Error deleting rule: " + e.getMessage());
+        }
+    }
 }

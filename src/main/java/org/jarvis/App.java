@@ -26,6 +26,9 @@ public class App extends Application {
         // Create the service and pass the controller to it
         packetListenerService = new PacketListenerService(controller);
 
+        // Give the controller a reference back to the service it needs to talk to.
+        controller.setPacketListenerService(packetListenerService);
+
         // Start the backend service on a separate thread
         Thread serviceThread = new Thread(() -> packetListenerService.start());
         serviceThread.setDaemon(true); // This allows the JVM to exit if only daemon threads are running

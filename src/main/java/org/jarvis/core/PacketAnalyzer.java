@@ -63,4 +63,20 @@ public class PacketAnalyzer implements PacketListener {
             }
         }
     }
+
+    public void addRule(String ruleValue) {
+        ruleValues.add(ruleValue);
+        System.out.println("New rule added to analyzer: " + ruleValue);
+    }
+
+    public void removeRule(String ruleValue) {
+        ruleValues.remove(ruleValue);
+        alreadyBlocked.remove(ruleValue); // Allow it to be blocked again if re-added
+        System.out.println("Rule removed from analyzer: " + ruleValue);
+    }
+
+    // Getter to expose the FirewallManager to other parts of the application
+    public FirewallManager getFirewallManager() {
+        return this.firewallManager;
+    }
 }
