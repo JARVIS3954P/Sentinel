@@ -1,11 +1,17 @@
 package org.jarvis.core;
 
 import org.pcap4j.core.*;
+import org.jarvis.ui.MainViewController;
 
 public class PacketListenerService {
 
     private PcapHandle handle;
     private Thread listenerThread;
+    private MainViewController uiController;
+
+    public PacketListenerService(MainViewController uiController) {
+        this.uiController = uiController;
+    }
 
     public void start() {
         System.out.println("Starting Packet Listener Service...");
@@ -22,7 +28,7 @@ public class PacketListenerService {
             this.handle = openPcapHandle(nif);
 
             // 3. Create the analyzer and start the listening loop on a new thread
-            PacketAnalyzer analyzer = new PacketAnalyzer();
+            PacketAnalyzer analyzer = new PacketAnalyzer(this.uiController);
             listenerThread = new Thread(() -> {
                 try {
                     // A value of -1 means loop indefinitely

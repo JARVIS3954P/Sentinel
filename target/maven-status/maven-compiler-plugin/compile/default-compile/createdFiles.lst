@@ -1,7 +1,9 @@
+org/jarvis/ui/MainViewController.class
 org/jarvis/core/PacketListenerService.class
 org/jarvis/core/PacketAnalyzer.class
 org/jarvis/persistence/DatabaseManager.class
 org/jarvis/model/LogEntry.class
+org/jarvis/Launcher.class
 org/jarvis/model/Rule.class
+org/jarvis/App.class
 org/jarvis/enforcer/FirewallManager.class
-org/jarvis/Main.class

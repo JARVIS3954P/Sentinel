@@ -6,6 +6,7 @@ import org.jarvis.persistence.DatabaseManager;
 import org.pcap4j.core.PacketListener;
 import org.pcap4j.packet.IpV4Packet;
 import org.pcap4j.packet.Packet;
+import org.jarvis.ui.MainViewController;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -18,8 +19,10 @@ public class PacketAnalyzer implements PacketListener {
     private final DatabaseManager databaseManager;
     private final Set<String> ruleValues; // The set of IP addresses to block
     private final Set<String> alreadyBlocked;
+    private final MainViewController uiController;
 
-    public PacketAnalyzer() {
+    public PacketAnalyzer(MainViewController uiController) {
+        this.uiController = uiController;
         this.firewallManager = new FirewallManager();
         this.databaseManager = new DatabaseManager();
         this.alreadyBlocked = Collections.synchronizedSet(new HashSet<>());
@@ -44,7 +47,14 @@ public class PacketAnalyzer implements PacketListener {
 
         if (ruleValues.contains(srcIp)) {
             if (alreadyBlocked.add(srcIp)) { // .add() returns true if the element was new
-                System.out.println("!!! MATCH FOUND !!! Source IP " + srcIp + " is in the ruleset.");
+                String logMsg = "!!! MATCH FOUND !!! Blocking source IP: " + srcIp;
+                System.out.println(logMsg);
+
+                // Send the message to the UI
+                if (uiController != null) {
+                    uiController.addLogMessage(logMsg);
+                }
+
                 firewallManager.blockIp(srcIp);
 
                 // Log the block event to the database
