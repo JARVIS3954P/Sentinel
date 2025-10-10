@@ -11,7 +11,7 @@
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
     </padding>
-    <Label text="IP Address:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+    <Label text="IP or Hostname:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
     <TextField fx:id="ipAddressField" GridPane.columnIndex="1" GridPane.rowIndex="0" />
 
     <HBox spacing="10.0" alignment="CENTER_RIGHT" GridPane.columnIndex="1" GridPane.rowIndex="2">
