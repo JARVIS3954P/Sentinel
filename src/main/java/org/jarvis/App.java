@@ -6,6 +6,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.jarvis.core.PacketListenerService;
+import org.jarvis.enforcer.BlockHttpServer;
+import org.jarvis.enforcer.HostsFileManager;
 import org.jarvis.ui.MainViewController;
 
 import java.io.IOException;
@@ -13,25 +15,30 @@ import java.io.IOException;
 public class App extends Application {
 
     private PacketListenerService packetListenerService;
+    private BlockHttpServer blockHttpServer;
+    private HostsFileManager hostsFileManager;
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-        // Load the FXML file
+        // Initialize helpers
+        blockHttpServer = new BlockHttpServer();
+        hostsFileManager = new HostsFileManager();
+
+        blockHttpServer.start();
+
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/jarvis/ui/main-view.fxml"));
         Parent root = loader.load();
 
-        // Get the controller instance from the loader
         MainViewController controller = loader.getController();
 
-        // Create the service and pass the controller to it
-        packetListenerService = new PacketListenerService(controller);
+        // Pass the new hosts file manager to the controller
+        controller.setHostsFileManager(hostsFileManager);
 
-        // Give the controller a reference back to the service it needs to talk to.
+        packetListenerService = new PacketListenerService(controller);
         controller.setPacketListenerService(packetListenerService);
 
-        // Start the backend service on a separate thread
         Thread serviceThread = new Thread(() -> packetListenerService.start());
-        serviceThread.setDaemon(true); // This allows the JVM to exit if only daemon threads are running
+        serviceThread.setDaemon(true);
         serviceThread.start();
 
         primaryStage.setTitle("Sentinel Firewall");
@@ -41,11 +48,16 @@ public class App extends Application {
 
     @Override
     public void stop() {
-        // This method is called when the UI is closed.
-        // We must ensure our background service is stopped gracefully.
         System.out.println("Application is shutting down...");
         if (packetListenerService != null) {
             packetListenerService.stop();
+        }
+        if (blockHttpServer != null) {
+            blockHttpServer.stop();
+        }
+        if (hostsFileManager != null) {
+            // Restore the hosts file to its original state on exit
+            hostsFileManager.restoreAndCleanup();
         }
     }
 

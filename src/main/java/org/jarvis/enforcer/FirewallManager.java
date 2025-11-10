@@ -1,53 +1,64 @@
 package org.jarvis.enforcer;
 
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 
 public class FirewallManager {
 
-    /**
-     * Blocks an IP address by adding a DROP rule to the INPUT chain in iptables.
-     * @param ipAddress The IP address to block.
-     * @return true if the command was executed successfully, false otherwise.
-     */
-    public boolean blockIp(String ipAddress) {
-        System.out.println("Attempting to block IP: " + ipAddress);
-        // We use -I (insert) instead of -A (append) to put our rule at the top.
-        // This ensures our rule is checked before any general ALLOW rules.
-        return executeIptablesCommand("-I", "INPUT", "-s", ipAddress, "-j", "DROP");
+    // A simple way to check if an address is IPv6
+    private boolean isIPv6(String ipAddress) {
+        return ipAddress.contains(":");
     }
 
-    /**
-     * Unblocks an IP address by deleting the corresponding DROP rule.
-     * @param ipAddress The IP address to unblock.
-     * @return true if the command was executed successfully, false otherwise.
-     */
-    public boolean unblockIp(String ipAddress) {
-        System.out.println("Attempting to unblock IP: " + ipAddress);
-        return executeIptablesCommand("-D", "INPUT", "-s", ipAddress, "-j", "DROP");
+    public void blockIp(String ipAddress, String direction) {
+        String command = isIPv6(ipAddress) ? "ip6tables" : "iptables";
+        System.out.println("Attempting to block IP (" + command + "): " + ipAddress + " for direction: " + direction);
+
+        if ("Incoming".equalsIgnoreCase(direction)) {
+            executeFirewallCommand(command, "-I", "INPUT", "-s", ipAddress, "-j", "DROP");
+        } else if ("Outgoing".equalsIgnoreCase(direction)) {
+            executeFirewallCommand(command, "-I", "OUTPUT", "-d", ipAddress, "-j", "DROP");
+        } else if ("Both".equalsIgnoreCase(direction)) {
+            executeFirewallCommand(command, "-I", "INPUT", "-s", ipAddress, "-j", "DROP");
+            executeFirewallCommand(command, "-I", "OUTPUT", "-d", ipAddress, "-j", "DROP");
+        }
     }
 
-    private boolean executeIptablesCommand(String... commandArgs) {
+    public void unblockIp(String ipAddress, String direction) {
+        String command = isIPv6(ipAddress) ? "ip6tables" : "iptables";
+        System.out.println("Attempting to unblock IP (" + command + "): " + ipAddress + " for direction: " + direction);
+
+        if ("Incoming".equalsIgnoreCase(direction)) {
+            executeFirewallCommand(command, "-D", "INPUT", "-s", ipAddress, "-j", "DROP");
+        } else if ("Outgoing".equalsIgnoreCase(direction)) {
+            executeFirewallCommand(command, "-D", "OUTPUT", "-d", ipAddress, "-j", "DROP");
+        } else if ("Both".equalsIgnoreCase(direction)) {
+            executeFirewallCommand(command, "-D", "INPUT", "-s", ipAddress, "-j", "DROP");
+            executeFirewallCommand(command, "-D", "OUTPUT", "-d", ipAddress, "-j", "DROP");
+        }
+    }
+
+    private boolean executeFirewallCommand(String firewallCommand, String... commandArgs) {
+        List<String> fullCommand = new ArrayList<>();
+        fullCommand.add("sudo");
+        fullCommand.add(firewallCommand);
+        for (String arg : commandArgs) {
+            fullCommand.add(arg);
+        }
+
         try {
-            // We must prepend "sudo" and "iptables" to the command arguments.
-            String[] fullCommand = new String[commandArgs.length + 2];
-            fullCommand[0] = "sudo";
-            fullCommand[1] = "iptables";
-            System.arraycopy(commandArgs, 0, fullCommand, 2, commandArgs.length);
-
             ProcessBuilder pb = new ProcessBuilder(fullCommand);
             Process process = pb.start();
-
-            // We should wait for the command to finish and check its exit code.
             int exitCode = process.waitFor();
 
             if (exitCode == 0) {
-                System.out.println("iptables command executed successfully.");
+                System.out.println("Firewall command executed successfully: " + String.join(" ", fullCommand));
                 return true;
             } else {
-                // If there was an error, print the error stream for debugging.
-                System.err.println("iptables command failed with exit code: " + exitCode);
+                System.err.println("Firewall command failed with exit code " + exitCode + ": " + String.join(" ", fullCommand));
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -57,7 +68,7 @@ public class FirewallManager {
                 return false;
             }
         } catch (IOException | InterruptedException e) {
-            System.err.println("Failed to execute iptables command.");
+            System.err.println("Failed to execute firewall command: " + String.join(" ", fullCommand));
             e.printStackTrace();
             return false;
         }

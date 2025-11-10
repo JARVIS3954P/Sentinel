@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.PieChart?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.BorderPane?>
@@ -11,39 +17,79 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.jarvis.ui.MainViewController">
-    <padding>
-        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-    </padding>
-    <center>
-        <VBox spacing="10.0" BorderPane.alignment="CENTER">
-            <children>
-                <Label text="Firewall Rules">
-                    <font>
-                        <Font name="System Bold" size="16.0" />
-                    </font>
-                </Label>
-                <TableView fx:id="rulesTable" prefHeight="250.0">
-                    <columns>
-                        <TableColumn fx:id="colRuleId" prefWidth="50.0" text="ID" />
-                        <TableColumn fx:id="colRuleType" prefWidth="150.0" text="Type" />
-                        <TableColumn fx:id="colRuleValue" prefWidth="350.0" text="Value" />
-                        <TableColumn fx:id="colRuleEnabled" prefWidth="100.0" text="Enabled" />
-                    </columns>
-                </TableView>
-                <HBox spacing="10.0">
-                    <children>
-                        <Button onAction="#handleAddRule" text="Add Rule..." />
-                        <Button onAction="#handleDeleteRule" text="Delete Selected Rule" />
-                    </children>
-                </HBox>
-                <Label text="Live Event Logs">
-                    <font>
-                        <Font name="System Bold" size="16.0" />
-                    </font>
-                </Label>
-                <ListView fx:id="logListView" prefHeight="250.0" />
-            </children>
-        </VBox>
-    </center>
-</BorderPane>
+<TabPane tabClosingPolicy="UNAVAILABLE" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.jarvis.ui.MainViewController">
+    <tabs>
+        <Tab text="Rules Management">
+            <content>
+                <BorderPane prefHeight="600.0" prefWidth="800.0">
+                    <padding>
+                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                    </padding>
+                    <center>
+                        <VBox spacing="10.0">
+                            <Label text="Firewall Rules">
+                                <font><Font name="System Bold" size="16.0" /></font>
+                            </Label>
+                            <TableView fx:id="rulesTable" VBox.vgrow="ALWAYS">
+                                <columns>
+                                    <TableColumn fx:id="colRuleId" prefWidth="50.0" resizable="false" text="ID" />
+                                    <TableColumn fx:id="colRuleType" prefWidth="120.0" text="Type" />
+                                    <TableColumn fx:id="colRuleValue" prefWidth="300.0" text="Value" />
+                                    <TableColumn fx:id="colRuleDirection" prefWidth="120.0" text="Direction" />
+                                    <TableColumn fx:id="colRuleEnabled" prefWidth="100.0" text="Enabled" />
+                                </columns>
+                                <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
+                            </TableView>
+                            <HBox spacing="10.0">
+                                <Button onAction="#handleAddRule" text="Add Rule..." />
+                                <Button onAction="#handleDeleteRule" text="Delete Selected Rule" />
+                                <!-- NEW BUTTON ADDED HERE -->
+                                <Button onAction="#handleDeleteAllRules" style="-fx-text-fill: red;" text="Delete All Rules" />
+                            </HBox>
+                            <Label text="Live Event Logs">
+                                <font><Font name="System Bold" size="16.0" /></font>
+                            </Label>
+                            <ListView fx:id="logListView" prefHeight="200.0" />
+                        </VBox>
+                    </center>
+                </BorderPane>
+            </content>
+        </Tab>
+        <Tab text="Dashboard">
+            <!-- The Dashboard Tab content remains unchanged -->
+            <content>
+                <BorderPane prefHeight="200.0" prefWidth="200.0">
+                    <padding><Insets bottom="10.0" left="10.0" right="10.0" top="10.0" /></padding>
+                    <center>
+                        <VBox spacing="20.0">
+                            <Label styleClass="dashboard-header" text="Live Analytics Dashboard" />
+                            <HBox alignment="CENTER_LEFT" spacing="50.0">
+                                <VBox>
+                                    <Label styleClass="dashboard-stat-label" text="Total Threats Blocked" />
+                                    <Label fx:id="totalBlockedLabel" styleClass="dashboard-stat-value" text="0" />
+                                </VBox>
+                                <VBox>
+                                    <Label styleClass="dashboard-stat-label" text="Active Rules" />
+                                    <Label fx:id="activeRulesLabel" styleClass="dashboard-stat-value" text="0" />
+                                </VBox>
+                            </HBox>
+                            <HBox spacing="10.0" VBox.vgrow="ALWAYS">
+                                <VBox HBox.hgrow="ALWAYS">
+                                    <Label styleClass="dashboard-header" text="Top 5 Blocked IPs" />
+                                    <BarChart fx:id="topIpsChart" animated="false" legendVisible="false">
+                                        <xAxis><CategoryAxis side="BOTTOM" /></xAxis>
+                                        <yAxis><NumberAxis side="LEFT" /></yAxis>
+                                    </BarChart>
+                                </VBox>
+                                <VBox>
+                                    <Label styleClass="dashboard-header" text="Blocks by Direction" />
+                                    <PieChart fx:id="directionPieChart" animated="false" prefHeight="300.0" prefWidth="300.0" />
+                                </VBox>
+                            </HBox>
+                        </VBox>
+                    </center>
+                </BorderPane>
+            </content>
+        </Tab>
+    </tabs>
+</TabPane>
