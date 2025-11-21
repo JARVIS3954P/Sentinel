@@ -3,6 +3,7 @@ org/jarvis/core/PacketAnalyzer.class
 org/jarvis/Launcher.class
 org/jarvis/enforcer/BlockHttpServer$BlockPageHandler.class
 org/jarvis/enforcer/BlockHttpServer.class
+org/jarvis/enforcer/SystemManager.class
 org/jarvis/ui/MainViewController.class
 org/jarvis/core/PacketListenerService.class
 org/jarvis/persistence/DatabaseManager.class

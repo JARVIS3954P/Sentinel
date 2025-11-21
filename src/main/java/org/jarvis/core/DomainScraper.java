@@ -17,16 +17,18 @@ public class DomainScraper {
             "([a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\\.)+[a-zA-Z]{2,}"
     );
 
+    // A blacklist of common, irrelevant domains found in search results.
     private static final Set<String> DOMAIN_BLACKLIST = Set.of(
             "duckduckgo.com", "duck.com", "donttrack.us", "google.com",
             "youtube.com", "facebook.com", "instagram.com", "wikipedia.org",
-            "twitter.com", "linkedin.com", "github.com", "w3.org"
+            "twitter.com", "linkedin.com", "github.com", "w3.org", "archive.org"
     );
 
     public Set<String> findRelatedDomains(String keyword) {
         Set<String> foundDomains = new HashSet<>();
         try {
-            String query = "list of all domains and subdomains used by " + keyword;
+            // A more specific query to find service and CDN domains.
+            String query = "all domains and subdomains used by " + keyword + " for content delivery";
             String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
 
             URL url = new URL("https://html.duckduckgo.com/html/?q=" + encodedQuery);
@@ -45,30 +47,21 @@ public class DomainScraper {
             Matcher matcher = DOMAIN_PATTERN.matcher(htmlContent.toString());
             while (matcher.find()) {
                 String domain = matcher.group().toLowerCase();
+
+                // Add any discovered domain that contains the keyword and is not on our ignore list.
                 if (!DOMAIN_BLACKLIST.contains(domain) && domain.contains(keyword)) {
                     foundDomains.add(domain);
                 }
             }
 
         } catch (Exception e) {
-            System.err.println("An error occurred during domain scraping. Using fallback list.");
+            System.err.println("An error occurred during domain scraping.");
             e.printStackTrace();
         }
 
-        // Comprehensive fallback list for major services
-        if ("youtube".equalsIgnoreCase(keyword)) {
-            foundDomains.add("youtube.com");
-            foundDomains.add("youtu.be");
-            foundDomains.add("googlevideo.com");
-            foundDomains.add("ytimg.com");
-            foundDomains.add("yt3.ggpht.com");
-            foundDomains.add("youtubei.googleapis.com");
-            foundDomains.add("googleusercontent.com");
-        } else {
-            // Generic fallback for other keywords
-            foundDomains.add(keyword + ".com");
-            foundDomains.add("www." + keyword + ".com");
-        }
+        // Always add the base domain itself, as scraping might miss it.
+        foundDomains.add(keyword + ".com");
+        foundDomains.add("www." + keyword + ".com");
 
         return foundDomains;
     }

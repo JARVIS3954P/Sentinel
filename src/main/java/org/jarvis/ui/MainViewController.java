@@ -6,6 +6,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.chart.BarChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
@@ -21,6 +22,7 @@ import javafx.stage.Stage;
 import org.jarvis.core.DomainScraper;
 import org.jarvis.core.PacketListenerService;
 import org.jarvis.enforcer.HostsFileManager;
+import org.jarvis.enforcer.SystemManager;
 import org.jarvis.model.Rule;
 import org.jarvis.persistence.DatabaseManager;
 
@@ -45,17 +47,19 @@ public class MainViewController {
     @FXML private ListView<String> logListView;
     @FXML private Label totalBlockedLabel;
     @FXML private Label activeRulesLabel;
+    @FXML private BarChart<String, Number> topIpsChart;
     @FXML private PieChart directionPieChart;
 
     // --- Backend Services ---
     private PacketListenerService packetListenerService;
     private DatabaseManager databaseManager;
     private HostsFileManager hostsFileManager;
-
+    private SystemManager systemManager;
     private ObservableList<Rule> ruleList;
 
     public void initialize() {
         this.databaseManager = new DatabaseManager();
+        this.systemManager = new SystemManager();
         initializeRulesManagementTab();
         initializeDashboard();
     }
@@ -117,53 +121,51 @@ public class MainViewController {
 
     private void processAddRuleRequest(String input, String direction) {
         String ipPattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
-
         if (input.matches(ipPattern) || input.contains(":")) { // Simple check for IPv4 or IPv6
-            addSingleIpRule(input, direction);
-            Platform.runLater(this::loadRules);
+            performIpBlock(input, direction);
         } else {
-            // --- HYBRID BLOCKING FOR KEYWORDS ---
-            addLogMessage("Starting dynamic block for keyword: '" + input + "'...");
-            DomainScraper scraper = new DomainScraper();
-            Set<String> domainsToBlock = scraper.findRelatedDomains(input);
-
-            if (domainsToBlock.isEmpty()) {
-                addLogMessage("No related domains found. Aborting.");
-                return;
-            }
-            addLogMessage("Found " + domainsToBlock.size() + " related domains. Blocking domains and resolving all IPs...");
-
-            Set<String> resolvedIps = new HashSet<>();
-            for (String domain : domainsToBlock) {
-                // Step 1: Add domain to hosts file for graceful blocking page
-                hostsFileManager.addDomainBlock(domain);
-                databaseManager.addRule("DOMAIN_BLOCK", domain, "N/A", true);
-
-                // Step 2: Resolve all IPs for this domain for rigorous iptables blocking
-                try {
-                    InetAddress[] addresses = InetAddress.getAllByName(domain);
-                    for (InetAddress addr : addresses) {
-                        resolvedIps.add(addr.getHostAddress());
-                    }
-                } catch (UnknownHostException e) {
-                    System.err.println("Could not resolve domain: " + domain);
-                }
-            }
-
-            addLogMessage("Resolved " + resolvedIps.size() + " unique IP addresses. Adding firewall rules...");
-            for (String ip : resolvedIps) {
-                addSingleIpRule(ip, direction);
-            }
-
-            addLogMessage("Finished rigorous block for keyword: " + input);
-            Platform.runLater(this::loadRules);
+            performKeywordBlock(input, direction);
         }
+        Platform.runLater(this::loadRules);
     }
 
-    private void addSingleIpRule(String ip, String direction) {
+    private void performIpBlock(String ip, String direction) {
+        addLogMessage("Adding IP-based rule for: " + ip);
         databaseManager.addRule("IP_BLOCK", ip, direction, true);
         Rule newRuleForAnalyzer = new Rule(0, "IP_BLOCK", ip, direction, true);
         packetListenerService.getAnalyzer().addRule(newRuleForAnalyzer);
+    }
+
+    private void performKeywordBlock(String keyword, String direction) {
+        addLogMessage("Starting dynamic block for keyword: '" + keyword + "'...");
+        DomainScraper scraper = new DomainScraper();
+        Set<String> domainsToBlock = scraper.findRelatedDomains(keyword);
+        if (domainsToBlock.isEmpty()) {
+            addLogMessage("No related domains found. Aborting.");
+            return;
+        }
+        addLogMessage("Found " + domainsToBlock.size() + " domains. Blocking and resolving IPs...");
+
+        Set<String> resolvedIps = new HashSet<>();
+        for (String domain : domainsToBlock) {
+            hostsFileManager.addDomainBlock(domain);
+            databaseManager.addRule("DOMAIN_BLOCK", domain, "N/A", true);
+            try {
+                for (InetAddress addr : InetAddress.getAllByName(domain)) {
+                    resolvedIps.add(addr.getHostAddress());
+                }
+            } catch (UnknownHostException e) {
+                System.err.println("Could not resolve domain: " + domain);
+            }
+        }
+
+        systemManager.flushDnsCache();
+
+        addLogMessage("Resolved " + resolvedIps.size() + " unique IPs. Adding to firewall...");
+        for (String ip : resolvedIps) {
+            performIpBlock(ip, direction);
+        }
+        addLogMessage("Finished rigorous block for keyword: " + keyword);
     }
 
     @FXML
@@ -176,7 +178,6 @@ public class MainViewController {
             } else if ("DOMAIN_BLOCK".equals(selectedRule.getType())) {
                 hostsFileManager.removeDomainBlock(selectedRule.getValue());
             }
-
             databaseManager.deleteRule(selectedRule.getId());
             ruleList.remove(selectedRule);
             addLogMessage("Deleted rule for: " + selectedRule.getValue());
@@ -206,19 +207,29 @@ public class MainViewController {
 
     private void performDeleteAllRules() {
         addLogMessage("Starting deletion of all rules...");
+
+        // Step 1: Unblock all IP-based rules from the firewall
         ArrayList<Rule> rulesToDelete = new ArrayList<>(ruleList);
         for (Rule rule : rulesToDelete) {
             if ("IP_BLOCK".equals(rule.getType())) {
                 packetListenerService.getFirewallManager().unblockIp(rule.getValue(), rule.getDirection());
                 packetListenerService.getAnalyzer().removeRule(rule.getValue());
-            } else if ("DOMAIN_BLOCK".equals(rule.getType())) {
-                hostsFileManager.removeDomainBlock(rule.getValue());
             }
         }
+
+        // Step 2: Remove all Sentinel-managed entries from the hosts file in one go
+        hostsFileManager.removeAllSentinelBlocks();
+
+        // Step 3: Flush the DNS cache to make the hosts file changes take effect immediately
+        systemManager.flushDnsCache();
+
+        // Step 4: Wipe the database table
         databaseManager.deleteAllRules();
+
+        // Step 5: Update the UI on the main application thread
         Platform.runLater(() -> {
             addLogMessage("All rules have been successfully deleted.");
-            loadRules();
+            loadRules(); // This will load the now-empty list and refresh the UI/dashboard
         });
     }
 
@@ -243,6 +254,7 @@ public class MainViewController {
                 for (Map.Entry<String, Integer> entry : topIps.entrySet()) {
                     ipSeries.getData().add(new XYChart.Data<>(entry.getKey(), entry.getValue()));
                 }
+                topIpsChart.getData().setAll(ipSeries);
 
                 ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
                 for (Map.Entry<String, Integer> entry : directionData.entrySet()) {

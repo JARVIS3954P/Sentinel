@@ -1,10 +1,5 @@
 package org.jarvis.enforcer;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,17 +33,13 @@ public class HostsFileManager {
     }
 
     public void addDomainBlock(String domain) {
-        // Run this in a privileged context
         String ruleLine = "127.0.0.1 " + domain + " " + SENTINEL_MARKER;
         try {
-            // First, check if the rule already exists to prevent duplicates
             List<String> lines = Files.readAllLines(Paths.get(HOSTS_FILE_PATH));
+            // Check for the exact line to prevent duplicates
             if (lines.stream().noneMatch(line -> line.trim().equals(ruleLine.trim()))) {
-                try (FileWriter fw = new FileWriter(HOSTS_FILE_PATH, true);
-                     BufferedWriter bw = new BufferedWriter(fw)) {
-                    bw.newLine();
-                    bw.write(ruleLine);
-                }
+                lines.add(ruleLine);
+                Files.write(Paths.get(HOSTS_FILE_PATH), lines);
                 System.out.println("Added to hosts file: " + domain);
             }
         } catch (IOException e) {
@@ -59,15 +50,39 @@ public class HostsFileManager {
 
     public void removeDomainBlock(String domain) {
         try {
-            File inputFile = new File(HOSTS_FILE_PATH);
-            List<String> lines = Files.readAllLines(inputFile.toPath());
+            Path hostsPath = Paths.get(HOSTS_FILE_PATH);
+            List<String> lines = Files.readAllLines(hostsPath);
+
+            // This is more robust: it removes any Sentinel-marked line containing the specific domain.
             List<String> updatedLines = lines.stream()
-                    .filter(line -> !line.contains("127.0.0.1 " + domain))
+                    .filter(line -> !(line.contains(SENTINEL_MARKER) && line.contains(" " + domain)))
                     .collect(Collectors.toList());
-            Files.write(inputFile.toPath(), updatedLines);
+
+            Files.write(hostsPath, updatedLines);
             System.out.println("Removed from hosts file: " + domain);
         } catch (IOException e) {
             System.err.println("Failed to remove domain from hosts file.");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * NEW METHOD: Efficiently removes all lines added by Sentinel in one operation.
+     */
+    public void removeAllSentinelBlocks() {
+        try {
+            Path hostsPath = Paths.get(HOSTS_FILE_PATH);
+            List<String> lines = Files.readAllLines(hostsPath);
+
+            // Keep only the lines that DO NOT have our marker.
+            List<String> updatedLines = lines.stream()
+                    .filter(line -> !line.contains(SENTINEL_MARKER))
+                    .collect(Collectors.toList());
+
+            Files.write(hostsPath, updatedLines);
+            System.out.println("Removed all Sentinel-managed blocks from hosts file.");
+        } catch (IOException e) {
+            System.err.println("Failed to remove all blocks from hosts file.");
             e.printStackTrace();
         }
     }
